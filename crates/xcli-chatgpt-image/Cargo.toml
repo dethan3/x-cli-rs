@@ -10,6 +10,7 @@ rust-version.workspace = true
 base64.workspace = true
 serde.workspace = true
 time.workspace = true
+tracing.workspace = true
 xcli-browser = { path = "../xcli-browser" }
 xcli-core = { path = "../xcli-core" }
 xcli-webbridge = { path = "../xcli-webbridge" }
