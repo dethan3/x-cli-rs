@@ -11,5 +11,6 @@ clap.workspace = true
 tokio.workspace = true
 xcli-browser = { path = "../../crates/xcli-browser" }
 xcli-chatgpt-image = { path = "../../crates/xcli-chatgpt-image" }
+xcli-core = { path = "../../crates/xcli-core" }
 xcli-output = { path = "../../crates/xcli-output" }
 xcli-webbridge = { path = "../../crates/xcli-webbridge" }
