@@ -9,7 +9,8 @@ use xcli_core::{Result, XCliError};
 use xcli_output::{print_json, JsonResponse};
 use xcli_webbridge::WebBridgeClient;
 
-const DEFAULT_BRIDGE_URL: &str = "http://127.0.0.1:14588";
+const DEFAULT_BRIDGE_URL: &str = "http://127.0.0.1:10086";
+const SESSION_NAME: &str = "chatgpt-image-cli";
 const CHATGPT_IMAGES_URL: &str = "https://chatgpt.com/images/";
 const FILE_TS_FORMAT: &[FormatItem<'_>] = format_description!("[year][month][day]-[hour][minute][second]");
 
@@ -78,7 +79,7 @@ async fn generate(args: GenerateArgs) -> Result<GenerateOutput> {
     std::fs::create_dir_all(&args.out).map_err(|err| XCliError::InvalidArgs(err.to_string()))?;
 
     let started = Instant::now();
-    let bridge = WebBridgeClient::new(args.bridge_url);
+    let bridge = WebBridgeClient::with_session(args.bridge_url, SESSION_NAME);
     let browser = Browser::new(bridge);
 
     browser.ensure_ready().await?;
