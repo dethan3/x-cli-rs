@@ -23,10 +23,12 @@ crates/
   xcli-chatgpt-image/  Reusable ChatGPT image generation flow
   xcli-google/         Reusable Google Search flow
   xcli-baidu/          Reusable Baidu Search flow
+  xcli-nanobanana/     Reusable Gemini Nano Banana image flow
 examples/
   chatgpt-image-cli/   Compatibility binary for the original CLI shape
   google-cli/          Compatibility binary for Google Search
   baidu-cli/           Compatibility binary for Baidu Search
+  nanobanana-cli/      Compatibility binary for Gemini Nano Banana
 ```
 
 ## Install
@@ -68,6 +70,7 @@ x
 chatgpt-image-cli
 google-cli
 baidu-cli
+nanobanana-cli
 ```
 
 ## Usage
@@ -98,6 +101,13 @@ x baidu search "大模型" --limit 10
 x baidu search "天气 北京" -n 20 --all
 ```
 
+Unified Nano Banana entrypoint:
+
+```bash
+x nanobanana gen "画一朵粉色月季花，微距特写" -o ./out
+x nano gen "generate an image of a tiny robot in a garden" --thumb-width 320 --timeout 300
+```
+
 Compatibility entrypoints:
 
 ```bash
@@ -105,6 +115,7 @@ chatgpt-image-cli generate "a cute panda riding a bicycle" -o ./images
 google-cli search "rust cli" --limit 10 --hl en
 baidu-cli search "大模型" --limit 10
 baidu-cli search "天气 北京" -n 20 --all
+nanobanana-cli gen "画一朵粉色月季花，微距特写" -o ./out
 ```
 
 The unified and compatibility entrypoints call the same reusable library flows.
@@ -121,6 +132,7 @@ Override the bridge URL when needed:
 XCLI_WEBBRIDGE_URL=http://127.0.0.1:10086 x chatgpt-image generate "hello"
 XCLI_WEBBRIDGE_URL=http://127.0.0.1:10086 x google search "rust cli"
 XCLI_WEBBRIDGE_URL=http://127.0.0.1:10086 x baidu search "大模型"
+XCLI_WEBBRIDGE_URL=http://127.0.0.1:10086 x nanobanana gen "画一朵花"
 ```
 
 ## Debugging
@@ -131,9 +143,11 @@ Use `--verbose` to print flow-level logs to stderr while keeping stdout as machi
 x --verbose chatgpt-image generate "hello" -o ./images
 x --verbose google search "rust cli"
 x --verbose baidu search "大模型"
+x --verbose nanobanana gen "画一朵粉色月季花" -o ./out
 chatgpt-image-cli --verbose generate "hello" -o ./images
 google-cli --verbose search "rust cli"
 baidu-cli --verbose search "大模型"
+nanobanana-cli --verbose gen "画一朵粉色月季花" -o ./out
 ```
 
 Verbose ChatGPT image logs show:
@@ -206,15 +220,32 @@ Baidu Search output:
 }
 ```
 
+Nano Banana output:
+
+```json
+{
+  "ok": true,
+  "data": {
+    "prompt": "画一朵粉色月季花，微距特写",
+    "full": "/abs/path/out/20260518-120000-full.png",
+    "thumb": "/abs/path/out/20260518-120000-thumb.png",
+    "width": 2816,
+    "height": 1536,
+    "thumb_width": 256,
+    "elapsed_ms": 184230
+  }
+}
+```
+
 ## Status
 
-This repository is being bootstrapped. The current milestone is a testable `chatgpt-image`, `google`, and `baidu` implementation with:
+This repository is being bootstrapped. The current milestone is a testable `chatgpt-image`, `google`, `baidu`, and `nanobanana` implementation with:
 
 - A unified `x` entrypoint.
-- Compatibility `chatgpt-image-cli`, `google-cli`, and `baidu-cli` entrypoints.
+- Compatibility `chatgpt-image-cli`, `google-cli`, `baidu-cli`, and `nanobanana-cli` entrypoints.
 - Shared JSON output helpers.
 - A `kimi-webbridge` protocol client.
-- Mock-tested ChatGPT image generation, Google Search, and Baidu Search flows.
+- Mock-tested ChatGPT image generation, Google Search, Baidu Search, and Nano Banana flows.
 - Optional verbose tracing for real browser debugging.
 - Release packaging and install scripts.
 
@@ -236,7 +267,7 @@ cargo generate-lockfile
 cargo fmt --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
-cargo build --release --locked -p xcli -p chatgpt-image-cli -p google-cli -p baidu-cli
+cargo build --release --locked -p xcli -p chatgpt-image-cli -p google-cli -p baidu-cli -p nanobanana-cli
 ```
 
 Real WebBridge smoke tests:
@@ -245,6 +276,7 @@ Real WebBridge smoke tests:
 make run-image
 make run-google
 make run-baidu
+make run-nanobanana
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for Cargo.lock policy, PR checklist, and release expectations.
@@ -260,6 +292,7 @@ x
 chatgpt-image-cli
 google-cli
 baidu-cli
+nanobanana-cli
 ```
 
 Release artifacts are zipped per target triple:
