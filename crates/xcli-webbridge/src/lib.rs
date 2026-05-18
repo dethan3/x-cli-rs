@@ -144,8 +144,11 @@ impl BrowserBridge for WebBridgeClient {
     }
 
     async fn navigate(&self, url: &str) -> Result<()> {
-        self.command("navigate", serde_json::json!({ "url": url, "newTab": false }))
-            .await?;
+        self.command(
+            "navigate",
+            serde_json::json!({ "url": url, "newTab": false }),
+        )
+        .await?;
         Ok(())
     }
 
@@ -156,7 +159,9 @@ impl BrowserBridge for WebBridgeClient {
         let data = self
             .command("evaluate", serde_json::json!({ "code": javascript }))
             .await?
-            .ok_or_else(|| XCliError::BrowserActionFailed("evaluate returned no data".to_string()))?;
+            .ok_or_else(|| {
+                XCliError::BrowserActionFailed("evaluate returned no data".to_string())
+            })?;
 
         parse_evaluate_data(&data)
     }
@@ -207,7 +212,8 @@ mod tests {
             alt: Option<String>,
         }
 
-        let data = "{\"type\":\"object\",\"value\":{\"src\":\"https://example.com/a.png\",\"alt\":null}}";
+        let data =
+            "{\"type\":\"object\",\"value\":{\"src\":\"https://example.com/a.png\",\"alt\":null}}";
         let value: Payload = parse_evaluate_data(data).unwrap();
 
         assert_eq!(
