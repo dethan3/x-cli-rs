@@ -7,12 +7,9 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-base64.workspace = true
 clap.workspace = true
-serde.workspace = true
-time.workspace = true
 tokio.workspace = true
 xcli-browser = { path = "../../crates/xcli-browser" }
-xcli-core = { path = "../../crates/xcli-core" }
+xcli-chatgpt-image = { path = "../../crates/xcli-chatgpt-image" }
 xcli-output = { path = "../../crates/xcli-output" }
 xcli-webbridge = { path = "../../crates/xcli-webbridge" }
