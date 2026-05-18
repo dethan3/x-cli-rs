@@ -182,15 +182,31 @@ This repository is being bootstrapped. The current milestone is a testable `chat
 
 ## Development
 
+Use the Makefile for the common local workflow:
+
+```bash
+make check
+make build
+make verify
+```
+
+Equivalent cargo commands:
+
 ```bash
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo run -p xcli -- chatgpt-image generate "hello"
-cargo run -p xcli -- google search "rust cli"
-cargo run -p chatgpt-image-cli -- generate "hello"
-cargo run -p google-cli -- search "rust cli"
+cargo build --release -p xcli -p chatgpt-image-cli -p google-cli
 ```
+
+Real WebBridge smoke tests:
+
+```bash
+make run-image
+make run-google
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for Cargo.lock policy, PR checklist, and release expectations.
 
 ## Release
 
