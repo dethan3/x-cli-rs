@@ -1,6 +1,7 @@
 use std::{path::PathBuf, time::Duration};
 
 use clap::{Parser, Subcommand};
+use tracing_subscriber::EnvFilter;
 use xcli_browser::Browser;
 use xcli_chatgpt_image::{generate, GenerateOptions, GenerateOutput};
 use xcli_output::{print_json, JsonResponse};
@@ -13,6 +14,9 @@ const SESSION_NAME: &str = "chatgpt-image-cli";
 #[command(name = "chatgpt-image-cli")]
 #[command(about = "Generate images through the ChatGPT web UI using kimi-webbridge")]
 struct Cli {
+    #[arg(short, long, global = true)]
+    verbose: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -41,6 +45,8 @@ struct GenerateArgs {
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
+    init_tracing(cli.verbose);
+
     let result = match cli.command {
         Commands::Generate(args) | Commands::Gen(args) => run_generate(args).await,
     };
@@ -54,6 +60,19 @@ async fn main() {
             std::process::exit(1);
         }
     }
+}
+
+fn init_tracing(verbose: bool) {
+    if !verbose {
+        return;
+    }
+
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_writer(std::io::stderr)
+        .without_time()
+        .try_init();
 }
 
 async fn run_generate(args: GenerateArgs) -> xcli_core::Result<GenerateOutput> {
