@@ -118,6 +118,39 @@ cargo run -p xcli -- chatgpt-image generate "hello"
 cargo run -p chatgpt-image-cli -- generate "hello"
 ```
 
+## Release
+
+The release workflow builds both binaries:
+
+```text
+x
+chatgpt-image-cli
+```
+
+Release artifacts are zipped per target triple:
+
+```text
+x-cli-rs-x86_64-unknown-linux-gnu.zip
+x-cli-rs-aarch64-apple-darwin.zip
+x-cli-rs-x86_64-apple-darwin.zip
+x-cli-rs-x86_64-pc-windows-msvc.zip
+```
+
+Each zip has a matching SHA256 file:
+
+```text
+x-cli-rs-x86_64-unknown-linux-gnu.zip.sha256
+```
+
+Create a release by pushing a version tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow can also be run manually from GitHub Actions via `workflow_dispatch`.
+
 ## Compatibility principles
 
 - Stable command arguments.
