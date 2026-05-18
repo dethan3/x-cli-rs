@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: macos-13
+            target: x86_64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binaries
+        run: cargo build --release --target ${{ matrix.target }} -p xcli -p chatgpt-image-cli
+
+      - name: Package artifacts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import os
+          import pathlib
+          import zipfile
+
+          target = os.environ["TARGET"]
+          ext = ".exe" if target.endswith("windows-msvc") else ""
+          root = pathlib.Path("target") / target / "release"
+          dist = pathlib.Path("dist")
+          dist.mkdir(exist_ok=True)
+
+          files = []
+          for name in ["x", "chatgpt-image-cli"]:
+              source = root / f"{name}{ext}"
+              if not source.exists():
+                  raise SystemExit(f"missing binary: {source}")
+              files.append(source)
+
+          archive = dist / f"x-cli-rs-{target}.zip"
+          with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+              for source in files:
+                  zf.write(source, arcname=source.name)
+
+          digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+          checksum = dist / f"{archive.name}.sha256"
+          checksum.write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
+          PY
+        env:
+          TARGET: ${{ matrix.target }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: x-cli-rs-${{ matrix.target }}
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.zip
+            dist/*.sha256
+          generate_release_notes: true
