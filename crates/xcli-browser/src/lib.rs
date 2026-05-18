@@ -68,14 +68,11 @@ where
         self.eval::<bool>(&js).await.map(|_| ())
     }
 
-    pub async fn wait_until<T, F>(&self, timeout: Duration, mut poll: F) -> Result<T>
-    where
-        F: AsyncFnMut() -> Result<Option<T>>,
-    {
+    pub async fn wait_for_js_truthy(&self, javascript: &str, timeout: Duration) -> Result<()> {
         let start = Instant::now();
         loop {
-            if let Some(value) = poll().await? {
-                return Ok(value);
+            if self.eval::<bool>(javascript).await? {
+                return Ok(());
             }
             if start.elapsed() >= timeout {
                 return Err(XCliError::BrowserActionFailed("wait timeout".to_string()));
