@@ -7,6 +7,7 @@ $Target = "x86_64-pc-windows-msvc"
 $Archive = "x-cli-rs-$Target.zip"
 $Checksum = "$Archive.sha256"
 $TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "x-cli-rs-install-$PID"
+$Bins = @("x.exe", "chatgpt-image-cli.exe", "google-cli.exe")
 
 function Say($Message) {
   Write-Host $Message
@@ -47,7 +48,7 @@ try {
 
   Expand-Archive -Force -Path (Join-Path $TmpDir $Archive) -DestinationPath (Join-Path $TmpDir "bin")
 
-  foreach ($Bin in @("x.exe", "chatgpt-image-cli.exe")) {
+  foreach ($Bin in $Bins) {
     $Source = Join-Path (Join-Path $TmpDir "bin") $Bin
     if (!(Test-Path $Source)) {
       Fail "missing binary in archive: $Bin"
@@ -56,8 +57,9 @@ try {
   }
 
   Say "Installed:"
-  Say "  $(Join-Path $InstallDir 'x.exe')"
-  Say "  $(Join-Path $InstallDir 'chatgpt-image-cli.exe')"
+  foreach ($Bin in $Bins) {
+    Say "  $(Join-Path $InstallDir $Bin)"
+  }
   Say ""
   Say "Make sure $InstallDir is on your PATH."
 } finally {
