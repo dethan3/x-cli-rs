@@ -14,10 +14,11 @@ Use this checklist before publishing the first public release of `x-cli-rs`.
 Run from the repository root:
 
 ```bash
+cargo generate-lockfile
 cargo fmt --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-cargo build --release -p xcli -p chatgpt-image-cli -p google-cli
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
+cargo build --release --locked -p xcli -p chatgpt-image-cli -p google-cli -p baidu-cli
 ```
 
 Expected result:
@@ -29,6 +30,7 @@ Expected result:
 - [ ] `target/release/x` exists
 - [ ] `target/release/chatgpt-image-cli` exists
 - [ ] `target/release/google-cli` exists
+- [ ] `target/release/baidu-cli` exists
 
 ## 3. WebBridge compatibility
 
@@ -40,6 +42,7 @@ Prerequisites:
 - [ ] Chrome extension is connected
 - [ ] Chrome is signed in to `chatgpt.com`
 - [ ] Chrome can open Google Search without a blocking consent page, or you are ready to accept the consent page once and retry
+- [ ] Chrome can open Baidu Search
 - [ ] ChatGPT Images page is available in the logged-in account
 
 ### 3.1 ChatGPT image flow
@@ -86,6 +89,28 @@ Verify:
 
 Selector assumptions and consent behavior are documented in [Google Search DOM Archaeology](google-archaeology.md). If Google extraction fails or selectors are changed, update that document in the same PR.
 
+### 3.3 Baidu Search flow
+
+Run:
+
+```bash
+cargo run -p xcli -- --verbose baidu search "大模型" --limit 5
+cargo run -p baidu-cli -- --verbose search "大模型" --limit 5
+cargo run -p baidu-cli -- --verbose search "天气 北京" -n 20 --all
+```
+
+Verify:
+
+- [ ] command succeeds
+- [ ] stdout contains `ok: true`
+- [ ] stdout `data.query` matches the query
+- [ ] stdout `data.count` matches the number of returned results
+- [ ] stdout `data.results` is an array
+- [ ] each result has `rank`, `id`, `tpl`, `title`, `url`, `abstract`, and `source`
+- [ ] `--limit 5` returns no more than five results
+- [ ] `-n 20` is reflected in the generated Baidu URL as `rn=20` in verbose logs
+- [ ] `--all` does not change output shape
+
 ## 4. JSON output contract
 
 Successful ChatGPT image output must be valid JSON on stdout only:
@@ -119,6 +144,29 @@ Successful Google Search output must be valid JSON on stdout only:
 }
 ```
 
+Successful Baidu Search output must be valid JSON on stdout only:
+
+```json
+{
+  "ok": true,
+  "data": {
+    "query": "大模型",
+    "count": 1,
+    "results": [
+      {
+        "rank": 1,
+        "id": "...",
+        "tpl": "www_index",
+        "title": "...",
+        "url": "https://example.com",
+        "abstract": "...",
+        "source": "..."
+      }
+    ]
+  }
+}
+```
+
 Error output must be valid JSON on stdout only:
 
 ```json
@@ -140,16 +188,20 @@ Verify:
 - [ ] error codes are stable
 - [ ] `chatgpt-image` supports `invalid_args`, `daemon_unreachable`, `daemon_not_running`, `extension_not_connected`, `generate_failed`
 - [ ] `google` supports `missing_args`, `daemon_unreachable`, `daemon_not_running`, `extension_not_connected`, `consent_required`, `no_results`, `search_failed`
+- [ ] `baidu` supports `missing_args`, `daemon_unreachable`, `daemon_not_running`, `extension_not_connected`, `search_failed`
 
 Recommended checks:
 
 ```bash
 cargo run -p xcli -- chatgpt-image generate "" ; echo $?
 cargo run -p xcli -- google search ; echo $?
+cargo run -p xcli -- baidu search ; echo $?
 cargo run -p xcli -- --verbose chatgpt-image generate "hello" >/tmp/xcli-image-out.json 2>/tmp/xcli-image-err.log
 cargo run -p xcli -- --verbose google search "rust cli" >/tmp/xcli-google-out.json 2>/tmp/xcli-google-err.log
+cargo run -p xcli -- --verbose baidu search "大模型" >/tmp/xcli-baidu-out.json 2>/tmp/xcli-baidu-err.log
 python -m json.tool /tmp/xcli-image-out.json >/dev/null
 python -m json.tool /tmp/xcli-google-out.json >/dev/null
+python -m json.tool /tmp/xcli-baidu-out.json >/dev/null
 ```
 
 ## 5. Release workflow dry run
@@ -161,8 +213,8 @@ Use manual dispatch before tagging, if possible:
 - [ ] macOS arm64 artifact is produced.
 - [ ] macOS x86_64 artifact is produced.
 - [ ] Windows artifact is produced.
-- [ ] Each artifact contains `x`, `chatgpt-image-cli`, and `google-cli`.
-- [ ] Windows artifact contains `x.exe`, `chatgpt-image-cli.exe`, and `google-cli.exe`.
+- [ ] Each artifact contains `x`, `chatgpt-image-cli`, `google-cli`, and `baidu-cli`.
+- [ ] Windows artifact contains `x.exe`, `chatgpt-image-cli.exe`, `google-cli.exe`, and `baidu-cli.exe`.
 - [ ] Each artifact has a matching `.sha256` file.
 
 ## 6. Install scripts
@@ -193,6 +245,7 @@ Verify:
 - [ ] installed `x --help` works
 - [ ] installed `chatgpt-image-cli --help` works
 - [ ] installed `google-cli --help` works
+- [ ] installed `baidu-cli --help` works
 
 ## 7. Publish v0.1.0
 
@@ -221,6 +274,7 @@ curl -fsSL https://raw.githubusercontent.com/hu-qi/x-cli-rs/main/install.sh | sh
 x --help
 chatgpt-image-cli --help
 google-cli --help
+baidu-cli --help
 ```
 
 Run real commands:
@@ -228,6 +282,7 @@ Run real commands:
 ```bash
 x --verbose chatgpt-image generate "a cute panda riding a bicycle" -o ./images
 x --verbose google search "rust cli" --limit 5 --hl en
+x --verbose baidu search "大模型" --limit 5
 ```
 
 Verify:
@@ -235,6 +290,7 @@ Verify:
 - [ ] commands succeed
 - [ ] image file exists
 - [ ] Google results are returned
+- [ ] Baidu results are returned
 - [ ] stdout JSON is valid
 - [ ] stderr logs are useful
 
