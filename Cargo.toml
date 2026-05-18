@@ -6,9 +6,11 @@ members = [
   "crates/xcli-browser",
   "crates/xcli-chatgpt-image",
   "crates/xcli-google",
+  "crates/xcli-baidu",
   "crates/xcli",
   "examples/chatgpt-image-cli",
   "examples/google-cli",
+  "examples/baidu-cli",
 ]
 resolver = "2"
 
