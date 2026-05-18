@@ -60,6 +60,27 @@ Override the bridge URL when needed:
 XCLI_WEBBRIDGE_URL=http://127.0.0.1:10086 cargo run -p xcli -- chatgpt-image generate "hello"
 ```
 
+## Debugging
+
+Use `--verbose` to print flow-level logs to stderr while keeping stdout as machine-readable JSON:
+
+```bash
+cargo run -p xcli -- --verbose chatgpt-image generate "hello" -o ./images
+cargo run -p chatgpt-image-cli -- --verbose generate "hello" -o ./images
+```
+
+Verbose logs show the major browser-agent steps:
+
+```text
+status -> navigate -> input -> submit -> wait_url -> wait_image -> read_image_meta -> download_image -> write_file
+```
+
+Set `RUST_LOG` for more control:
+
+```bash
+RUST_LOG=debug cargo run -p xcli -- --verbose chatgpt-image generate "hello"
+```
+
 ## Expected successful output
 
 ```json
@@ -85,6 +106,7 @@ This repository is being bootstrapped. The current milestone is a testable `chat
 - Shared JSON output helpers.
 - A `kimi-webbridge` protocol client.
 - Mock-tested ChatGPT image generation flow.
+- Optional verbose tracing for real browser debugging.
 
 ## Development
 
