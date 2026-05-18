@@ -88,23 +88,44 @@ impl WebBridgeClient {
             .await
             .map_err(|err| XCliError::BrowserActionFailed(err.to_string()))?;
 
-        let response: CommandResponse<'_> = serde_json::from_str(&body)
-            .map_err(|err| XCliError::BrowserActionFailed(format!("parse command response: {err}")))?;
-
-        if !response.ok {
-            if let Some(error) = response.error {
-                return Err(XCliError::BrowserActionFailed(format!(
-                    "{}: {}",
-                    error.code, error.message
-                )));
-            }
-            return Err(XCliError::BrowserActionFailed(
-                "daemon returned ok=false with no error body".to_string(),
-            ));
-        }
-
-        Ok(response.data.map(|value| value.get().to_string()))
+        parse_command_response(&body)
     }
+}
+
+fn parse_command_response(body: &str) -> Result<Option<String>> {
+    let response: CommandResponse<'_> = serde_json::from_str(body)
+        .map_err(|err| XCliError::BrowserActionFailed(format!("parse command response: {err}")))?;
+
+    if !response.ok {
+        if let Some(error) = response.error {
+            return Err(XCliError::BrowserActionFailed(format!(
+                "{}: {}",
+                error.code, error.message
+            )));
+        }
+        return Err(XCliError::BrowserActionFailed(
+            "daemon returned ok=false with no error body".to_string(),
+        ));
+    }
+
+    Ok(response.data.map(|value| value.get().to_string()))
+}
+
+fn parse_evaluate_data<T>(data: &str) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    let wrapper: EvaluateWrapper<'_> = serde_json::from_str(data).map_err(|err| {
+        XCliError::BrowserActionFailed(format!("parse evaluate wrapper: {err} (raw={data})"))
+    })?;
+
+    serde_json::from_str(wrapper.value.get()).map_err(|err| {
+        let type_hint = wrapper.r#type.as_deref().unwrap_or("unknown");
+        XCliError::BrowserActionFailed(format!(
+            "parse evaluate value: {err} (type={type_hint}, raw={})",
+            wrapper.value.get()
+        ))
+    })
 }
 
 #[async_trait]
@@ -137,16 +158,73 @@ impl BrowserBridge for WebBridgeClient {
             .await?
             .ok_or_else(|| XCliError::BrowserActionFailed("evaluate returned no data".to_string()))?;
 
-        let wrapper: EvaluateWrapper<'_> = serde_json::from_str(&data).map_err(|err| {
-            XCliError::BrowserActionFailed(format!("parse evaluate wrapper: {err} (raw={data})"))
-        })?;
+        parse_evaluate_data(&data)
+    }
+}
 
-        serde_json::from_str(wrapper.value.get()).map_err(|err| {
-            let type_hint = wrapper.r#type.as_deref().unwrap_or("unknown");
-            XCliError::BrowserActionFailed(format!(
-                "parse evaluate value: {err} (type={type_hint}, raw={})",
-                wrapper.value.get()
-            ))
-        })
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_command_success_with_data() {
+        let body = "{\"ok\":true,\"data\":{\"type\":\"string\",\"value\":\"hello\"}}";
+        let data = parse_command_response(body).unwrap().unwrap();
+
+        assert_eq!(data, "{\"type\":\"string\",\"value\":\"hello\"}");
+    }
+
+    #[test]
+    fn parses_command_success_without_data() {
+        let body = "{\"ok\":true}";
+        let data = parse_command_response(body).unwrap();
+
+        assert!(data.is_none());
+    }
+
+    #[test]
+    fn parses_command_error_body() {
+        let body = "{\"ok\":false,\"error\":{\"code\":\"bad_selector\",\"message\":\"not found\"}}";
+        let err = parse_command_response(body).unwrap_err();
+
+        assert_eq!(err.code(), "browser_action_failed");
+        assert!(err.to_string().contains("bad_selector: not found"));
+    }
+
+    #[test]
+    fn parses_evaluate_string_value() {
+        let data = "{\"type\":\"string\",\"value\":\"hello\"}";
+        let value: String = parse_evaluate_data(data).unwrap();
+
+        assert_eq!(value, "hello");
+    }
+
+    #[test]
+    fn parses_evaluate_object_value() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct Payload {
+            src: String,
+            alt: Option<String>,
+        }
+
+        let data = "{\"type\":\"object\",\"value\":{\"src\":\"https://example.com/a.png\",\"alt\":null}}";
+        let value: Payload = parse_evaluate_data(data).unwrap();
+
+        assert_eq!(
+            value,
+            Payload {
+                src: "https://example.com/a.png".to_string(),
+                alt: None,
+            }
+        );
+    }
+
+    #[test]
+    fn reports_evaluate_value_parse_error_with_type_hint() {
+        let data = "{\"type\":\"number\",\"value\":123}";
+        let err = parse_evaluate_data::<String>(data).unwrap_err();
+
+        assert_eq!(err.code(), "browser_action_failed");
+        assert!(err.to_string().contains("type=number"));
     }
 }
