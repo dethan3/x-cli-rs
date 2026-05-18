@@ -1,0 +1,20 @@
+[package]
+name = "xcli"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "x"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+tokio.workspace = true
+xcli-browser = { path = "../xcli-browser" }
+xcli-chatgpt-image = { path = "../xcli-chatgpt-image" }
+xcli-core = { path = "../xcli-core" }
+xcli-output = { path = "../xcli-output" }
+xcli-webbridge = { path = "../xcli-webbridge" }
