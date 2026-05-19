@@ -311,6 +311,12 @@ make run-baidu
 make run-nanobanana
 ```
 
+Guides for adding new browser-backed CLIs:
+
+- [New Browser CLI Guide](docs/new-cli-guide.md)
+- [Site CLI Template](docs/site-cli-template.md)
+- [Companion Skill Template](docs/companion-skill-template.md)
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) for Cargo.lock policy, PR checklist, and release expectations.
 
 ## Release
