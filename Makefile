@@ -1,4 +1,4 @@
-.PHONY: help lock locked-check fmt clippy test check build run-image run-google run-baidu run-nanobanana verify install-check release-build
+.PHONY: help lock locked-check fmt clippy test check build run-image run-google run-baidu run-nanobanana run-xiaohongshu run-twitter verify install-check release-build
 
 help:
 	@echo "Available targets:"
@@ -13,6 +13,8 @@ help:
 	@echo "  run-google     Run x google search with a sample query"
 	@echo "  run-baidu      Run x baidu search with a sample query"
 	@echo "  run-nanobanana Run x nanobanana gen with a sample prompt"
+	@echo "  run-xiaohongshu Run x xiaohongshu search with a sample query"
+	@echo "  run-twitter    Run x twitter search with a sample query"
 	@echo "  verify         Run lock, locked-check, check, and release build"
 	@echo "  install-check  Syntax-check install scripts where supported"
 

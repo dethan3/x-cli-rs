@@ -332,7 +332,7 @@ async fn download_post_media(
     out_dir: &Path,
     throttle: Duration,
 ) -> Result<DownloadReport> {
-    std::fs::create_dir_all(out_dir).map_err(|err| {
+    tokio::fs::create_dir_all(out_dir).await.map_err(|err| {
         XCliError::BrowserActionFailed(format!("create out dir {}: {}", out_dir.display(), err))
     })?;
 
@@ -353,12 +353,12 @@ async fn download_post_media(
         ..Default::default()
     };
 
-    let mut first = true;
+    let mut first_image = true;
     for (idx, url) in detail.images.iter().enumerate() {
-        if !first && !throttle.is_zero() {
+        if !first_image && !throttle.is_zero() {
             tokio::time::sleep(throttle).await;
         }
-        first = false;
+        first_image = false;
         let ext = guess_extension(url, "jpg");
         let filename = format!("{}-image-{:02}.{}", id, idx + 1, ext);
         match fetch_to_file(&client, url, out_dir, &filename).await {
@@ -376,10 +376,12 @@ async fn download_post_media(
         }
     }
 
+    let mut first_video = true;
     for (idx, url) in detail.videos.iter().enumerate() {
-        if !throttle.is_zero() {
+        if !first_video && !throttle.is_zero() {
             tokio::time::sleep(throttle).await;
         }
+        first_video = false;
         let ext = guess_extension(url, "mp4");
         let filename = format!("{}-video-{:02}.{}", id, idx + 1, ext);
         match fetch_to_file(&client, url, out_dir, &filename).await {
@@ -424,7 +426,9 @@ async fn fetch_to_file(
         .map_err(|err| format!("read body: {}", err))?;
 
     let path = out_dir.join(filename);
-    std::fs::write(&path, &bytes).map_err(|err| format!("write {}: {}", path.display(), err))?;
+    tokio::fs::write(&path, &bytes)
+        .await
+        .map_err(|err| format!("write {}: {}", path.display(), err))?;
 
     Ok(DownloadedAsset {
         url: url.to_string(),
@@ -434,13 +438,33 @@ async fn fetch_to_file(
 }
 
 /// Pick a reasonable file extension from a Twitter CDN URL.
+///
+/// Twitter image URLs frequently look like
+/// `https://pbs.twimg.com/media/<id>?format=jpg&name=large` — i.e. the real
+/// extension lives in the `format` query parameter, not the path. Try the
+/// query parameter first, then fall back to the path extension, then the
+/// caller-supplied default.
 fn guess_extension(url: &str, default: &str) -> String {
-    // Strip query string before sniffing.
+    fn looks_like_ext(candidate: &str) -> bool {
+        !candidate.is_empty()
+            && candidate.len() <= 5
+            && candidate.chars().all(|c| c.is_ascii_alphanumeric())
+    }
+
+    if let Some(query) = url.split('?').nth(1) {
+        for pair in query.split('&') {
+            if let Some(value) = pair.strip_prefix("format=") {
+                if looks_like_ext(value) {
+                    return value.to_ascii_lowercase();
+                }
+            }
+        }
+    }
+
     let path_part = url.split('?').next().unwrap_or(url);
     if let Some(idx) = path_part.rfind('.') {
         let ext = &path_part[idx + 1..];
-        // Reject obviously bogus "extensions" like a trailing path segment.
-        if !ext.is_empty() && ext.len() <= 5 && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+        if looks_like_ext(ext) {
             return ext.to_ascii_lowercase();
         }
     }
@@ -920,8 +944,19 @@ fn post_extract_script() -> String {
       const base = _xcliBuildSummary(article);
 
       // Tweet detail page exposes additional aria-labels on the actions row.
-      const quotes = _xcliExtractCount(article, 'unretweet') ||
-                     _xcliExtractCount(article, 'retweet');
+      // Quote count is NOT reachable from a `data-testid` on the action row
+      // (the retweet button covers both reposts and quotes); instead Twitter
+      // renders a clickable `<a href=".../quotes">` summary above/below the
+      // actions. Pull the visible count from there.
+      let quotes = '';
+      const quoteAnchor = article.querySelector(
+        'a[href$="/quotes"], a[href*="/quotes?"]'
+      );
+      if (quoteAnchor) {{
+        const text = (quoteAnchor.innerText || quoteAnchor.textContent || '').trim();
+        const m = text.match(/([\d,\.]+\s*[KMB]?)/i);
+        if (m) quotes = m[1].replace(/\s+/g, '');
+      }}
       const bookmarks = _xcliExtractCount(article, 'removeBookmark') ||
                         _xcliExtractCount(article, 'bookmark');
 
@@ -975,8 +1010,16 @@ fn replies_ready_script() -> &'static str {
     r#"
     (() => {
       const arts = document.querySelectorAll('article[data-testid="tweet"]');
-      // Need at least the original tweet; replies may take an extra moment.
-      return arts.length >= 1;
+      // Happy path: root tweet plus at least one reply rendered.
+      if (arts.length >= 2) return true;
+      // Tweets with no replies render an explicit empty-state hook.
+      if (document.querySelector('[data-testid="emptyState"]')) return true;
+      // Fallback: root tweet is up and the loading spinner has gone, which
+      // means either no replies exist or replies failed to load -- we accept
+      // and let the extractor return an empty list rather than time out.
+      const progress = document.querySelector('[role="progressbar"]');
+      if (arts.length >= 1 && !progress) return true;
+      return false;
     })()
     "#
 }
@@ -1299,6 +1342,19 @@ mod tests {
         assert_eq!(
             guess_extension("https://video.twimg.com/x/720x1280/abc.mp4", "x"),
             "mp4"
+        );
+        // ?format= query parameter takes precedence over a missing path ext.
+        assert_eq!(
+            guess_extension("https://pbs.twimg.com/media/abc?format=jpg&name=large", "x"),
+            "jpg"
+        );
+        // ?format= also wins over a misleading path segment.
+        assert_eq!(
+            guess_extension(
+                "https://pbs.twimg.com/media/abc.bin?format=png&name=orig",
+                "x"
+            ),
+            "png"
         );
         // No extension: fall back to default.
         assert_eq!(

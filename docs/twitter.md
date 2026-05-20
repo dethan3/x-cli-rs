@@ -57,7 +57,8 @@ The `post` command returns the tweet text, author, time, all interaction
 counts (replies / retweets / quotes / likes / bookmarks / views), and **all
 embedded media**:
 
-- `images`: `pbs.twimg.com/media/...` URLs (full-resolution candidates)
+- `images`: `pbs.twimg.com/media/...` URLs as rendered in the DOM (often
+  medium-size; see the limitations section for the `?name=orig` caveat)
 - `videos`: direct `video.twimg.com/...mp4` URLs from `<source>` tags plus
   the video poster image
 - `links`: external URLs (mentions, hashtags, internal `/status/` links are
