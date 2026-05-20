@@ -34,7 +34,7 @@ test:
 check: fmt clippy test
 
 build:
-	cargo build --release --locked -p xcli -p chatgpt-image-cli -p google-cli -p baidu-cli -p nanobanana-cli -p xiaohongshu-cli
+	cargo build --release --locked -p xcli -p chatgpt-image-cli -p google-cli -p baidu-cli -p nanobanana-cli -p xiaohongshu-cli -p twitter-cli
 
 run-image:
 	cargo run -p xcli -- --verbose chatgpt-image generate "a cute panda riding a bicycle" -o ./images
@@ -50,6 +50,9 @@ run-nanobanana:
 
 run-xiaohongshu:
 	cargo run -p xcli -- --verbose xiaohongshu search "穿搭" --limit 5
+
+run-twitter:
+	cargo run -p xcli -- --verbose twitter search "rust" --limit 5
 
 verify: lock locked-check check build
 
